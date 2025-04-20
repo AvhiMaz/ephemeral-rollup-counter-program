@@ -1,7 +1,8 @@
 use crate::{instruction::ProgramInstruction, state::Counter};
 use borsh::{BorshDeserialize, BorshSerialize};
-use ephemeral_rollups_sdk::cpi::{
-    delegate_account, undelegate_account, DelegateAccounts, DelegateConfig,
+use ephemeral_rollups_sdk::{
+    cpi::{delegate_account, undelegate_account, DelegateAccounts, DelegateConfig},
+    ephem::{commit_accounts, commit_and_undelegate_accounts},
 };
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -148,7 +149,8 @@ pub fn process_delegation(program_id: &Pubkey, accounts: &[AccountInfo]) -> Prog
 
     Ok(())
 }
-pub fn process_undelegate(
+
+pub fn undelegate(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     pda_seeds: Vec<Vec<u8>>,
@@ -159,14 +161,63 @@ pub fn process_undelegate(
     let initializer = next_account_info(accounts_iter)?;
     let system_program = next_account_info(accounts_iter)?;
 
-    let _ = undelegate_account(
+    undelegate_account(
         delegate_pda,
         program_id,
         delegation_buffer,
         initializer,
         system_program,
         pda_seeds,
-    );
+    )?;
+
+    Ok(())
+}
+
+pub fn process_commit_and_undelegate(
+    _program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    let initializer = next_account_info(account_info_iter)?;
+    let counter_account = next_account_info(account_info_iter)?;
+    let magic_program = next_account_info(account_info_iter)?;
+    let magic_context = next_account_info(account_info_iter)?;
+
+    // Signer should be the same as the initializer
+    if !initializer.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Commit and undelegate counter_account on ER
+    commit_and_undelegate_accounts(
+        initializer,
+        vec![counter_account],
+        magic_context,
+        magic_program,
+    )?;
+
+    Ok(())
+}
+
+pub fn process_commit(_program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    let initializer = next_account_info(account_info_iter)?;
+    let counter_account = next_account_info(account_info_iter)?;
+    let magic_program = next_account_info(account_info_iter)?;
+    let magic_context = next_account_info(account_info_iter)?;
+
+    // Signer should be the same as the initializer
+    if !initializer.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Commit counter_account on ER
+    commit_accounts(
+        initializer,
+        vec![counter_account],
+        magic_context,
+        magic_program,
+    )?;
 
     Ok(())
 }
