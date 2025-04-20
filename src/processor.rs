@@ -131,7 +131,7 @@ pub fn process_increase_counter(
     Ok(())
 }
 
-pub fn process_delegation(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+pub fn process_delegation(_program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let initializer = next_account_info(account_info_iter)?; // user who owns the counter
     let pda_to_delegate = next_account_info(account_info_iter)?; // the actual counter PDA you're delegating
