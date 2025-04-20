@@ -1,6 +1,8 @@
 use crate::{instruction::ProgramInstruction, state::Counter};
 use borsh::{BorshDeserialize, BorshSerialize};
-use ephemeral_rollups_sdk::cpi::{delegate_account, DelegateAccounts, DelegateConfig};
+use ephemeral_rollups_sdk::cpi::{
+    delegate_account, undelegate_account, DelegateAccounts, DelegateConfig,
+};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -146,4 +148,25 @@ pub fn process_delegation(program_id: &Pubkey, accounts: &[AccountInfo]) -> Prog
 
     Ok(())
 }
- pub fn 
+pub fn process_undelegate(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    pda_seeds: Vec<Vec<u8>>,
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+    let delegate_pda = next_account_info(accounts_iter)?;
+    let delegation_buffer = next_account_info(accounts_iter)?;
+    let initializer = next_account_info(accounts_iter)?;
+    let system_program = next_account_info(accounts_iter)?;
+
+    let _ = undelegate_account(
+        delegate_pda,
+        program_id,
+        delegation_buffer,
+        initializer,
+        system_program,
+        pda_seeds,
+    );
+
+    Ok(())
+}
