@@ -1,5 +1,6 @@
 use crate::{instruction::ProgramInstruction, state::Counter};
 use borsh::{BorshDeserialize, BorshSerialize};
+use ephemeral_rollups_sdk::cpi::{delegate_account, DelegateAccounts, DelegateConfig};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -106,6 +107,42 @@ pub fn process_increase_counter(
     let mut counter_data = Counter::try_from_slice(&counter_acc.data.borrow())?;
     counter_data.count += increase_by;
     counter_data.serialize(&mut &mut counter_acc.data.borrow_mut()[..])?;
+
+    Ok(())
+}
+
+pub fn delegation(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    let initializer = next_account_info(account_info_iter)?; // user who owns the counter
+    let pda_to_delegate = next_account_info(account_info_iter)?; // the actual counter PDA you're delegating
+    let owner_program = next_account_info(account_info_iter)?; // program (the one managing the counter)
+    let delegation_buffer = next_account_info(account_info_iter)?; // temporary buffer for update queue
+    let delegation_record = next_account_info(account_info_iter)?; // record that stores delegation state
+    let delegation_metadata = next_account_info(account_info_iter)?; // extra metadata like lifetime, status
+    let delegation_program = next_account_info(account_info_iter)?; // magicblock's delegation program
+    let system_program = next_account_info(account_info_iter)?; // creating accounts if needed
+
+    let seed_1 = b"counter_acc";
+    let seed_2 = initializer.key.as_ref();
+    let pda_seeds: &[&[u8]] = &[seed_1, seed_2];
+
+    let delegate_accounts = DelegateAccounts {
+        payer: initializer,
+        pda: pda_to_delegate,
+        owner_program,
+        buffer: delegation_buffer,
+        delegation_record,
+        delegation_metadata,
+        delegation_program,
+        system_program,
+    };
+
+    let delegation_config = DelegateConfig {
+        commit_frequency_ms: 30_000,
+        validator: None,
+    };
+
+    delegate_account(delegate_accounts, pda_seeds, delegation_config)?;
 
     Ok(())
 }
