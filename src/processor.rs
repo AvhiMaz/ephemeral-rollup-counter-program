@@ -18,10 +18,12 @@ pub fn process_instruction(
     let instruction = ProgramInstruction::unpack(instruction_data);
 
     //match instruction {
+    //    // init counter
     //    ProgramInstruction::InitCounter => process_init_counter(program_id, accounts),
-    //}
+    //};
     Ok(())
 }
+
 fn process_init_counter(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts_iter = &mut accounts.iter(); // creates a mutable iterator over the account list so we can call next_account_info() multiple times to get each account in order
     let initializer_acc = next_account_info(accounts_iter)?; // who is initializing the acc (user or can be an admin)
@@ -79,6 +81,31 @@ fn process_init_counter(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progra
         // the double &mut &mut – that’s just because serialize() needs &mut dyn Write and you're passing a mutable slice.
         counter_data.serialize(&mut &mut counter_acc.data.borrow_mut()[..])?;
     };
+
+    Ok(())
+}
+
+pub fn process_increase_counter(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    increase_by: u64,
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+    let initializer_acc = next_account_info(accounts_iter)?;
+    let counter_acc = next_account_info(accounts_iter)?;
+    let _system_program = next_account_info(accounts_iter)?;
+
+    let (counter_pda, _bump) =
+        Pubkey::find_program_address(&[b"counter_acc", initializer_acc.key.as_ref()], program_id);
+
+    // checking if pda matchs with the counter_acc.key
+    if counter_pda != *counter_acc.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    let mut counter_data = Counter::try_from_slice(&counter_acc.data.borrow())?;
+    counter_data.count += increase_by;
+    counter_data.serialize(&mut &mut counter_acc.data.borrow_mut()[..])?;
 
     Ok(())
 }
