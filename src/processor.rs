@@ -19,13 +19,30 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    let instruction = ProgramInstruction::unpack(instruction_data);
+    let instruction = ProgramInstruction::unpack(instruction_data)?;
+    match instruction {
+        // 0: InitializeCounter
+        ProgramInstruction::InitCounter => process_init_counter(program_id, accounts),
 
-    //match instruction {
-    //    // init counter
-    //    ProgramInstruction::InitCounter => process_init_counter(program_id, accounts),
-    //};
-    Ok(())
+        //1: IncreaseCounter
+        ProgramInstruction::IncreaseCounter { increase_by } => {
+            process_increase_counter(program_id, accounts, increase_by)
+        }
+
+        //2: Delegate
+        ProgramInstruction::Delegate => process_delegation(program_id, accounts),
+
+        //3: CommitAndUndelegate
+        ProgramInstruction::CommitAndUndelegate => {
+            process_commit_and_undelegate(program_id, accounts)
+        }
+
+        //4: Commit
+        ProgramInstruction::Commit => process_commit(program_id, accounts),
+
+        //5: Undelegate
+        ProgramInstruction::Undelegate { pda_seeds } => undelegate(program_id, accounts, pda_seeds),
+    }
 }
 
 fn process_init_counter(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
